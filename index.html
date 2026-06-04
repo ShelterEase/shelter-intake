@@ -1154,6 +1154,8 @@ function generateIndividualReport(intakeDate) {
     const sel = selamectinDose(species, weight);
     const str = strongidDose(weight);
 
+    // Selamectin: eligible at 8 weeks (2 months) for both dogs and cats
+    const selEligible = age >= 8;
     // Strongid: eligible at 2 weeks+
     // Heartworm test: dogs only, 6 months (26 weeks) or older
     const strongidEligible = age >= 2;
@@ -1176,9 +1178,9 @@ function generateIndividualReport(intakeDate) {
         <tbody>
           <tr>
             <td class="med-name">Selamectin (Topical)</td>
-            <td class="dose-val">${sel}</td>
-            <td>Topical — base of neck</td>
-            <td class="note">120 mg/mL · Apply at base of neck</td>
+            <td class="dose-val">${selEligible ? sel : '—'}</td>
+            <td>${selEligible ? 'Topical — base of neck' : '—'}</td>
+            <td class="note">${selEligible ? '120 mg/mL · Apply at base of neck ✅ Eligible (8 wks+)' : `⚠️ Under 8 weeks — not yet eligible (${age} wks)`}</td>
           </tr>
           <tr>
             <td class="med-name">Strongid (Pyrantel Pamoate)</td>
@@ -1398,7 +1400,7 @@ function generateLitterReport(intakeDate) {
       const surgTag = (a.alt !== 'altered') ? (isSurgEligible(a)
         ? `<span class="tag" style="background:#e8f5e9;color:#2e7d32">✂️ Surg OK</span>`
         : `<span class="tag" style="background:#fff3e0;color:#e65100">⏳ Not yet</span>`) : '';
-      const selDose = (lSpecies && a.wt > 0) ? selamectinDose(lSpecies, a.wt) : '—';
+      const selDose = (lSpecies && a.wt > 0 && litterAge >= 8) ? selamectinDose(lSpecies, a.wt) : (a.wt > 0 && litterAge < 8 ? '⚠️ Under 8 wks' : '—');
       const strDose = (a.wt > 0 && litterAge >= 2) ? strongidDose(a.wt) : (a.wt > 0 ? '⚠️ Under 2 wks' : '—');
       listHTML += `<li>${specTag} <strong>${a.name}</strong> ${a.sex === 'M' ? '♂' : a.sex === 'F' ? '♀' : ''} ${a.wt ? `· ${a.wt} lbs` : ''} ${altTag} ${surgTag} ${a.note ? `· <em style="color:var(--gray-500)">${a.note}</em>` : ''}<br/>
         <span style="font-size:0.76rem;color:var(--gray-500);padding-left:4px">Selamectin: ${selDose} &nbsp;|&nbsp; Strongid: ${strDose}</span></li>`;
@@ -1411,7 +1413,7 @@ function generateLitterReport(intakeDate) {
 
   // ── Meds ──
   let medsHTML = '';
-  if (momPresent === 'yes') medsHTML += `<p style="font-size:0.88rem;color:var(--gray-700);margin-bottom:8px"><strong>Mother:</strong> Treat per individual weight at intake. Selamectin &amp; Strongid doses apply.</p>`;
+  if (momPresent === 'yes') medsHTML += `<p style="font-size:0.88rem;color:var(--gray-700);margin-bottom:8px"><strong>Mother:</strong> Treat per individual weight at intake. Selamectin (eligible — adult) &amp; Strongid doses apply.</p>`;
   if (animals.length > 0)  medsHTML += `<p style="font-size:0.88rem;color:var(--gray-700)">Individual doses shown in litter list above.</p>`;
   if (!medsHTML) medsHTML = '<p style="color:var(--gray-500);font-size:0.9rem">Add animals to see doses.</p>';
   document.getElementById('rMedsContent').innerHTML = medsHTML;
@@ -1429,7 +1431,7 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
   const confirmedAlt = altered === 'yes';
 
   items.push({ icon: '💉', text: `Administer vaccines (age-eligible: ${age >= 4 ? '✅ yes' : '⚠️ under 4 wks — hold'})` });
-  items.push({ icon: '💊', text: 'Administer Selamectin (topical, base of neck) per dose chart above' });
+  items.push({ icon: '💊', text: 'Administer Selamectin (topical, base of neck) per dose chart above — eligible at 8 weeks (2 months) and older' });
   items.push({ icon: '💊', text: 'Administer Strongid (oral, shake well) per dose chart above' });
 
   if (species === 'dog' && !isLitter) {
