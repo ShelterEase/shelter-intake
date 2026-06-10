@@ -230,6 +230,7 @@
   .pill.altered.active{ background: var(--green); border-color: var(--green); }
   .pill.os.active    { background: #5e35b1; border-color: #5e35b1; }
   .pill.stray.active { background: #2e7d32; border-color: #2e7d32; }
+  .pill.po.active    { background: #1565c0; border-color: #1565c0; }
   .pill.litter.active{ background: #6d4c41; border-color: #6d4c41; }
   .pill.yes.active   { background: var(--green); border-color: var(--green); }
   .pill.no.active    { background: var(--red); border-color: var(--red); }
@@ -507,12 +508,21 @@
           <input type="date" id="intakeDate" onchange="regenerateIfVisible()"/>
         </div>
 
+        <div style="margin-top:14px">
+          <label>Microchip Present? <span class="req">*</span></label>
+          <div class="pill-group" id="microchipPresentPills">
+            <button class="pill yes" data-group="microchipPresent" data-val="yes" onclick="setPill(this)">✅ Yes — Possible Owner</button>
+            <button class="pill no"  data-group="microchipPresent" data-val="no"  onclick="setPill(this)">❌ No</button>
+          </div>
+        </div>
+
       </div>
       <div style="margin-top:16px">
         <label>Intake Type <span class="req">*</span></label>
         <div class="pill-group" id="intakeTypePills">
           <button class="pill os"    data-group="intakeType" data-val="os"    onclick="setPill(this)">👤 Owner Surrender</button>
           <button class="pill stray" data-group="intakeType" data-val="stray" onclick="setPill(this)">🏃 Stray</button>
+          <button class="pill po"    data-group="intakeType" data-val="po"    onclick="setPill(this)">🏷️ Possible Owner</button>
           <button class="pill litter" data-group="intakeType" data-val="litter" onclick="setPill(this)">🐣 Litter / Group</button>
         </div>
       </div>
@@ -592,6 +602,7 @@
           <button class="pill"     data-group="examOutcome" data-val="behavior" onclick="setPill(this)">⚠️ Behavior Issue</button>
           <button class="pill"     data-group="examOutcome" data-val="both"     onclick="setPill(this)">⚕️⚠️ Medical &amp; Behavior</button>
           <button class="pill"     data-group="examOutcome" data-val="no-help"  onclick="setPill(this)">😰 No help / Too stressed</button>
+          <button class="pill"     data-group="examOutcome" data-val="weekend"  onclick="setPill(this)">📅 Weekend — Not Complete</button>
 
         </div>
       </div>
@@ -745,7 +756,8 @@ const state = {
   momPresent: null,
   momAltered: null,
   litterSpecies: null,
-  microchip: null
+  microchip: null,
+  microchipPresent: null
 };
 
 let litterRows = 0;
@@ -759,6 +771,18 @@ function setPill(btn) {
   // deactivate siblings
   document.querySelectorAll(`.pill[data-group="${group}"]`).forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
+
+  // If microchip = yes, auto-select Possible Owner intake type
+  if (group === 'microchipPresent' && val === 'yes') {
+    const poBtn = document.querySelector('.pill[data-group="intakeType"][data-val="po"]');
+    if (poBtn) setPill(poBtn);
+    return; // setPill(poBtn) will call onStateChange + regenerateIfVisible
+  }
+  // If microchip = no and intakeType is currently po, clear it
+  if (group === 'microchipPresent' && val === 'no' && state.intakeType === 'po') {
+    state.intakeType = null;
+    document.querySelectorAll('.pill[data-group="intakeType"]').forEach(p => p.classList.remove('active'));
+  }
 
   onStateChange();
   regenerateIfVisible();
@@ -782,6 +806,18 @@ function onStateChange() {
   // Heartworm only for dogs
   toggle('hwSection', state.species === 'dog' && !isLitter);
 
+  // If microchip=yes, lock intake type to Possible Owner only
+  document.querySelectorAll('.pill[data-group="intakeType"]').forEach(btn => {
+    if (state.microchipPresent === 'yes' && btn.dataset.val !== 'po') {
+      btn.disabled = true;
+      btn.style.opacity = '0.35';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+    }
+  });
 
 }
 
@@ -872,55 +908,65 @@ function delRow(n) {
 // Value: target day-of-week for the NEXT occurrence after intake
 // ═══════════════════════════════════════════════════════════════════
 
-// DOGS
-// Exam Day:  Sun→Sun, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Sat  (same day)
-const DOG_EXAM_DAY    = [0, 1, 2, 3, 4, 5, 6];
+// ─── Surgery Schedule (per chart — applies to animals > 4 months only) ────────
+// Surgeries Mon–Fri only. Dates are 1 day after hold period ends.
+// DOW index: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
 
-// P/O Surgery: Sun→Mon, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Sat
-const DOG_PO_SURG     = [1, 1, 2, 3, 4, 5, 6];
+// DOGS > 4 months
+// Stray (4-day hold): Sun→Fri, Mon→Fri, Tue→Mon, Wed→Mon, Thu→Tue, Fri→Wed, Sat→Thu
+const DOG_STRAY_SURG  = [5, 5, 1, 1, 2, 3, 4];
+// Owner Surrender (no hold): Sun→Mon, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Mon
+const DOG_OS_SURG     = [1, 1, 2, 3, 4, 5, 1];
+// Possible Owner (7-day hold): Sun→Tue+1wk, Mon→Tue+1wk, Tue→Wed+1wk, Wed→Thu+1wk, Thu→Fri+1wk, Fri→Mon+2wk, Sat→Mon+2wk
+const DOG_PO_SURG_OFFSETS = [9, 8, 8, 8, 8, 10, 9]; // days to add to intakeDate
 
-// Stray Hold/Surgery: Sun→Thu, Mon→Fri, Tue→Mon, Wed→Tue, Thu→Wed, Fri→Thu, Sat→Fri
-const DOG_STRAY_SURG  = [4, 5, 1, 2, 3, 4, 5];
+// CATS > 4 months
+// Stray (2-day hold): Sun→Wed, Mon→Wed, Tue→Thu, Wed→Fri, Thu→Mon, Fri→Mon, Sat→Tue
+const CAT_STRAY_SURG  = [3, 3, 4, 5, 1, 1, 2];
+// Owner Surrender (no hold): Sun→Mon, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Mon
+const CAT_OS_SURG     = [1, 1, 2, 3, 4, 5, 1];
+// Possible Owner (7-day hold): Sun→Tue+1wk, Mon→Tue+1wk, Tue→Wed+1wk, Wed→Thu+1wk, Thu→Fri+1wk, Fri→Mon+2wk, Sat→Mon+2wk
+const CAT_PO_SURG_OFFSETS = [9, 8, 8, 8, 8, 10, 9]; // days to add to intakeDate
 
-// Litter Surgery: Sun→Mon, Mon→Tue, Tue→Wed, Wed→Thu, Thu→Fri, Fri→Mon, Sat→Mon
-const DOG_LITTER_SURG = [1, 2, 3, 4, 5, 1, 1];
+// Litter uses stray tables (same schedule)
+const DOG_LITTER_SURG = DOG_STRAY_SURG;
+const CAT_KITTEN_SURG = CAT_STRAY_SURG;
+const DOG_PO_SURG     = DOG_STRAY_SURG; // litter fallback only
+const CAT_PO_SURG     = CAT_STRAY_SURG; // litter fallback only
 
-// Puppy Surgery: Sun→Tue, Mon→Wed, Tue→Thu, Wed→Fri, Thu→Tue, Fri→Tue, Sat→Tue
-const DOG_PUPPY_SURG  = [2, 3, 4, 5, 2, 2, 2];
-
-// CATS
-// Exam Day: Sun→Sun, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Sat  (same day)
-const CAT_EXAM_DAY    = [0, 1, 2, 3, 4, 5, 6];
-
-// P/O Surgery: Sun→Sun, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Fri, Sat→Sat  (same day)
-const CAT_PO_SURG     = [0, 1, 2, 3, 4, 5, 6];
-
-// Stray Hold/Surgery: Sun→Wed, Mon→Thu, Tue→Fri, Wed→Sat, Thu→Mon, Fri→Tue, Sat→Wed
-const CAT_STRAY_SURG  = [3, 4, 5, 6, 1, 2, 3];
-
-// Kittens Surgery: Sun→Mon, Mon→Mon, Tue→Tue, Wed→Wed, Thu→Thu, Fri→Tue, Sat→Wed
-const CAT_KITTEN_SURG = [1, 1, 2, 3, 4, 2, 3];
-
-// TNVR Surgery: Sun→Wed, Mon→Thu, Tue→Fri, Wed→Sat, Thu→Mon, Fri→Tue, Sat→Wed
-const CAT_TNVR_SURG   = [3, 4, 5, 6, 1, 2, 3];
+// Possible Owner (7-day hold) — same for dogs and cats
+// Sun→Mon+1wk, Mon→Tue+1wk, Tue→Wed+1wk, Wed→Thu+1wk, Thu→Fri+1wk, Fri→Mon+2wk, Sat→Tue+2wk
+// Handled separately via addDays logic (see calcSurgeryDate)
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-// Given an intake date and a lookup table, find the next scheduled day.
-// Always moves FORWARD at least 1 day from intake.
-// For P/O: same day-of-week next occurrence (e.g. Mon intake → next Mon).
-// For Stray: finds the target DOW in the following days (hold period built into table).
+// Given an intake date and a DOW lookup table, find the next occurrence of that target DOW
+// at least 1 day after intake.
 function scheduledDay(intakeDate, lookupTable) {
   const dow = intakeDate.getDay();
   const targetDow = lookupTable[dow];
-  // Start searching from day after intake
   let d = addDays(intakeDate, 1);
   for (let i = 0; i < 14; i++) {
     if (d.getDay() === targetDow) return d;
     d = addDays(d, 1);
   }
   return null;
+}
+
+// Calculate surgery date from chart for animals > 4 months.
+// intakeType: 'os' | 'stray' | 'po' (possible owner)
+// Returns a Date or null.
+function calcSurgeryDate(intakeDate, intakeType, species) {
+  const dow = intakeDate.getDay();
+  if (intakeType === 'po') {
+    const offsets = species === 'dog' ? DOG_PO_SURG_OFFSETS : CAT_PO_SURG_OFFSETS;
+    return addDays(intakeDate, offsets[dow]);
+  }
+  const tbl = intakeType === 'os'
+    ? (species === 'dog' ? DOG_OS_SURG : CAT_OS_SURG)
+    : (species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG);
+  return scheduledDay(intakeDate, tbl);
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -969,6 +1015,7 @@ function determineStage(outcome) {
   if (outcome === 'behavior')             return { stage: 'New Arrival Behavior',               cls: 'stage-behavior',     icon: '⚠️', note: 'Behavior concern flagged — notify Pathway Planning team.' };
   if (outcome === 'both')                 return { stage: 'New Arrival Medical "Use Caution"',  cls: 'stage-medical',      icon: '⚕️⚠️', note: 'Medical AND behavior concerns — notify both medical team and Pathway Planning team.' };
   if (outcome === 'no-help')              return { stage: 'New Arrival Needs Intake',          cls: 'stage-needs-intake', icon: '😰', note: '⚠️ Too stressed for exam — intake staff must return next business day to complete.' };
+  if (outcome === 'weekend')              return { stage: 'New Arrival Needs Intake',          cls: 'stage-needs-intake', icon: '📅', note: '⚠️ Weekend intake — exam not yet complete. Intake staff must return next business day to finish.' };
   return { stage: 'New Arrival', cls: 'stage-new', icon: '✅', note: '' };
 }
 
@@ -977,6 +1024,11 @@ function determineStage(outcome) {
 function generateReport() {
   const intakeDateStr = document.getElementById('intakeDate').value;
   if (!intakeDateStr) { alert('Please enter an intake date.'); return; }
+
+  if (!state.microchipPresent) {
+    alert('Please indicate whether the animal has a microchip (Yes or No) before generating the action plan.');
+    return;
+  }
 
   const isLitterType = state.intakeType === 'litter';
   const needsSpecies = !isLitterType && !state.species;
@@ -1030,7 +1082,8 @@ function generateIndividualReport(intakeDate) {
     <div class="info-row"><span class="info-label">Age</span><span class="info-value">${age ? ageLabel() : '—'}</span></div>
     <div class="info-row"><span class="info-label">Sex</span><span class="info-value">${sexLabel}</span></div>
     <div class="info-row"><span class="info-label">Altered</span><span class="info-value">${alteredLabel}</span></div>
-    <div class="info-row"><span class="info-label">Intake Type</span><span class="info-value">${state.intakeType === 'os' ? '👤 Owner Surrender' : '🏃 Stray'}</span></div>
+    <div class="info-row"><span class="info-label">Microchip Present</span><span class="info-value">${state.microchipPresent === 'yes' ? '✅ Yes' : state.microchipPresent === 'no' ? '❌ No' : '—'}</span></div>
+    <div class="info-row"><span class="info-label">Intake Type</span><span class="info-value">${state.intakeType === 'os' ? '👤 Owner Surrender' : state.intakeType === 'po' ? '🏷️ Possible Owner' : '🏃 Stray'}</span></div>
     ${hw ? `<div class="info-row"><span class="info-label">Heartworm Test</span><span class="info-value">${hw === 'neg' ? '✅ Negative' : hw === 'pos' ? '⚠️ Positive' : hw === 'pend' ? '⏳ Pending' : 'N/A'}</span></div>` : ''}
     ${notes ? `<div class="info-row"><span class="info-label">Notes</span><span class="info-value" style="max-width:60%;text-align:right">${notes}</span></div>` : ''}
   `;
@@ -1048,17 +1101,22 @@ function generateIndividualReport(intakeDate) {
   const confirmedAltered = altered === 'yes';
   const needsSurg        = !confirmedAltered;
   const examHealthy      = outcome === 'healthy' && !hwPositive;
-  const surgBlocked      = hwPositive || (outcome && outcome !== 'healthy' && outcome !== 'pending');
+  const surgBlocked      = hwPositive || (outcome && outcome !== 'healthy' && outcome !== 'pending' && outcome !== 'weekend');
   let strayHoldDate      = null;
 
   // Calculate surgery / hold dates for use in Surgery section below
-  if (state.intakeType === 'os') {
-    surgeryDate = intakeDate;
-  } else { // stray
-    if (species) {
-      const strayTbl = species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG;
-      strayHoldDate  = scheduledDay(intakeDate, strayTbl);
-      surgeryDate    = strayHoldDate;
+  if (species && age > 17) {
+    if (state.intakeType === 'po') {
+      const dow = intakeDate.getDay();
+      const offsets = species === 'dog' ? DOG_PO_SURG_OFFSETS : CAT_PO_SURG_OFFSETS;
+      surgeryDate = addDays(intakeDate, offsets[dow]);
+      strayHoldDate = surgeryDate; // PO also has a hold
+    } else {
+      const tbl = state.intakeType === 'os'
+        ? (species === 'dog' ? DOG_OS_SURG : CAT_OS_SURG)
+        : (species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG);
+      surgeryDate = scheduledDay(intakeDate, tbl);
+      if (state.intakeType === 'stray') strayHoldDate = surgeryDate;
     }
   }
 
@@ -1070,6 +1128,8 @@ function generateIndividualReport(intakeDate) {
   const hasMedical  = hwPositive || outcome === 'medical' || outcome === 'both';
   const stageOutcome = (hasMedical && hasBehavior) ? 'both'
                      : hasMedical                  ? 'medical'
+                     : hasBehavior                 ? 'behavior'
+                     : (outcome === 'weekend')      ? 'weekend'
                      : outcome;
   let { stage, cls, icon, note } = determineStage(stageOutcome);
 
@@ -1112,14 +1172,15 @@ function generateIndividualReport(intakeDate) {
   let surgHTML = '';
   const isOS = state.intakeType === 'os';
 
-  // Under 8 weeks or 2–4 months: no surgery scheduling by intake staff
+  // Under 8 weeks: foster, no surgery
   if (age > 0 && age < 8) {
     surgHTML = `<p style="color:var(--gray-500);font-size:0.9rem">🏠 Under 8 weeks — place in foster. No surgery scheduled.</p>`;
+  // 2–4 months (8–17 weeks): Medical Building, surgery handled by medical team, not scheduled in PetPoint
   } else if (age >= 8 && age <= 17 && species) {
     const placement = species === 'dog' ? 'Dog Treatment (right side)' : 'Cat Post-Op';
     surgHTML = `<div style="background:#e3f2fd;border:2px solid #bbdefb;border-radius:11px;padding:14px 16px">
       <div style="font-weight:700;color:#1565c0;margin-bottom:4px">🏥 Surgery by Medical Team</div>
-      <p style="font-size:.88rem;color:var(--gray-700)">Place in Medical Building — <strong>${placement}</strong>. Medical will perform surgery next day if possible. Do not schedule in PetPoint.</p>
+      <p style="font-size:.88rem;color:var(--gray-700)">Under 4 months — place in Medical Building (<strong>${placement}</strong>). Medical will perform surgery next day if possible. Do <strong>not</strong> schedule in PetPoint.</p>
     </div>`;
   } else if (confirmedAltered && isOS && examHealthy) {
     // OS altered healthy = Move to Adoptions — no surgery section needed
@@ -1137,14 +1198,14 @@ function generateIndividualReport(intakeDate) {
       : 'Surgery will be scheduled if needed when intake is completed.';
     surgHTML = `<p style="font-size:.9rem;color:var(--gray-700)">${reason}</p>`;
   } else if (surgeryDate) {
-    // Intact & healthy — show surgery day + hold note for strays
-    const surgLabel = isOS ? fmtDate(intakeDate) : fmtDate(surgeryDate);
-    const surgSub   = isOS
+    const surgSub = state.intakeType === 'os'
       ? 'Owner surrender — no hold required'
+      : state.intakeType === 'po'
+      ? `Possible Owner 7-day hold ends ${fmtDate(surgeryDate)} — cannot adopt or transfer before this date`
       : `Stray hold ends ${fmtDate(surgeryDate)} — cannot adopt or transfer before this date`;
     surgHTML = `<div style="background:var(--green-pale);border-radius:11px;padding:14px 16px;border:2px solid var(--green-light)">
         <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--green)">📅 Surgery Day</div>
-        <div style="font-size:1.1rem;font-weight:900;margin-top:3px">${surgLabel}</div>
+        <div style="font-size:1.1rem;font-weight:900;margin-top:3px">${fmtDate(surgeryDate)}</div>
         <div style="font-size:0.78rem;color:var(--gray-500);margin-top:3px">${surgSub}</div>
       </div>`;
   }
@@ -1444,8 +1505,8 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
     items.push({ icon: '🩸', text: `Heartworm test: ${hw === 'neg' ? '✅ Negative — logged' : hwPos ? '⚠️ POSITIVE — notify medical team immediately' : hw === 'pend' ? '⏳ Pending — follow up' : 'Required if 6 months or older'}` });
   }
 
-  if (outcome === 'no-help' || outcome === 'pending' || !outcome) {
-    items.push({ icon: '⚠️', text: 'Set stage to "New Arrival Needs Intake" · Intake staff MUST return next business day to complete' });
+  if (outcome === 'no-help' || outcome === 'pending' || outcome === 'weekend' || !outcome) {
+    items.push({ icon: outcome === 'weekend' ? '📅' : '⚠️', text: outcome === 'weekend' ? 'Set stage to "New Arrival Needs Intake" · Weekend intake — return next business day to complete exam' : 'Set stage to "New Arrival Needs Intake" · Intake staff MUST return next business day to complete' });
   } else if (hwPos && (outcome === 'behavior' || outcome === 'both')) {
     items.push({ icon: '⚕️⚠️', text: 'Set stage to "New Arrival Medical \\"Use Caution\\"" · Notify BOTH medical team AND Pathway Planning team' });
   } else if (outcome === 'both') {
