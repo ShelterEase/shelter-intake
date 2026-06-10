@@ -1081,11 +1081,11 @@ function generateIndividualReport(intakeDate) {
     icon  = '🏠';
     note  = 'Under 8 weeks — needs foster home.';
   }
-  // 2–4 months individual animal → Surgery stage
+  // 2–4 months individual animal → New Arrival (Medical Building)
   else if (age >= 8 && age <= 17 && species) {
-    stage = 'Surgery';
+    stage = 'New Arrival';
     cls   = 'stage-new';
-    icon  = '✂️';
+    icon  = '✅';
     note  = species === 'dog'
       ? 'Place in Medical Building — Dog Treatment (right side). Medical will perform surgery next day if possible.'
       : 'Place in Medical Building — Cat Post-Op. Medical will perform surgery next day if possible.';
@@ -1463,12 +1463,12 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
     text: isYoungLitter
       ? 'Set stage to "Pending Foster Placement" — find foster home ASAP'
       : isMedicalLitter
-      ? `Set stage to "Surgery" · Place in Medical Building — ${litterPlacement}. Medical will perform surgery next day if possible.`
+      ? `Set stage to "New Arrival" · Place in Medical Building — ${litterPlacement}. Medical will perform surgery next day if possible.`
       : 'Set stage to "New Arrival — Litter" for each animal in PetPoint'
   });
   } else if (!isLitter && age >= 8 && age <= 17 && species) {
     const placement = species === 'dog' ? 'Dog Treatment (right side)' : 'Cat Post-Op';
-    items.push({ icon: '✂️', text: `Set stage to "Surgery" in PetPoint · Place in Medical Building — ${placement}` });
+    items.push({ icon: '✅', text: `Set stage to "New Arrival" in PetPoint · Place in Medical Building — ${placement}` });
   } else {
     items.push({ icon: '✅', text: 'Set stage to "New Arrival" in PetPoint' });
   }
