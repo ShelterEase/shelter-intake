@@ -561,6 +561,9 @@
               <option value="years">yrs</option>
             </select>
           </div>
+          <div class="pill-group" id="seniorPills" style="margin-bottom:6px">
+            <button type="button" class="pill" data-group="seniorFlag" data-val="yes" onclick="toggleSenior(this)">🐾 Senior (8+ yrs)</button>
+          </div>
           <p class="inline-note" id="ageNoteDisplay"></p>
         </div>
         <div>
@@ -757,7 +760,8 @@ const state = {
   momAltered: null,
   litterSpecies: null,
   microchip: null,
-  microchipPresent: null
+  microchipPresent: null,
+  seniorFlag: null
 };
 
 let litterRows = 0;
@@ -837,6 +841,7 @@ function getLitterAgeWeeks() {
 
 // Returns age in weeks from the age input fields
 function getAgeWeeks() {
+  if (state.seniorFlag === 'yes') return 416; // 8 years, exact threshold
   const val  = parseFloat(document.getElementById('ageValue')?.value) || 0;
   const unit = document.getElementById('ageUnit')?.value || 'weeks';
   if (unit === 'months') return val * 4.33;
@@ -845,6 +850,7 @@ function getAgeWeeks() {
 }
 
 function ageLabel() {
+  if (state.seniorFlag === 'yes') return 'Senior (8+ years)';
   const val  = parseFloat(document.getElementById('ageValue')?.value) || 0;
   const unit = document.getElementById('ageUnit')?.value || 'weeks';
   if (!val) return '—';
@@ -854,9 +860,32 @@ function ageLabel() {
   return val + ' weeks';
 }
 
+// Toggle the Senior (8+ yrs) pill. Disables/clears the numeric age input when active.
+function toggleSenior(btn) {
+  const isActive = btn.classList.contains('active');
+  if (isActive) {
+    btn.classList.remove('active');
+    state.seniorFlag = null;
+    document.getElementById('ageValue').disabled = false;
+    document.getElementById('ageUnit').disabled  = false;
+  } else {
+    btn.classList.add('active');
+    state.seniorFlag = 'yes';
+    document.getElementById('ageValue').value = '';
+    document.getElementById('ageValue').disabled = true;
+    document.getElementById('ageUnit').disabled  = true;
+  }
+  updateAgeNote();
+  regenerateIfVisible();
+}
+
 function updateAgeNote() {
-  const w  = getAgeWeeks();
   const el = document.getElementById('ageNoteDisplay');
+  if (state.seniorFlag === 'yes') {
+    el.textContent = '🐾 Flagged for medical/wellness exam';
+    return;
+  }
+  const w  = getAgeWeeks();
   if (!w) { el.textContent = ''; return; }
   if (w < 2)       el.textContent = '⚠️ Under 2 weeks — neonatal · No treatments yet · Assess for foster/bottle-feeding';
   else if (w < 4)  el.textContent = '2–4 weeks — Strongid eligible · Vaccines not yet due';
@@ -1123,15 +1152,23 @@ function generateIndividualReport(intakeDate) {
   document.getElementById('rDatesContent').innerHTML = datesHTML;
 
   // ── Stage ──
+  // Senior animals (8+ years old) are flagged Medical for vet review, even if healthy
+  const isSenior = age >= 416; // 8 years = 416 weeks
   // If HW positive: treat as medical. But if exam also flagged behavior, escalate to 'both'.
   const hasBehavior = outcome === 'behavior' || outcome === 'both';
-  const hasMedical  = hwPositive || outcome === 'medical' || outcome === 'both';
+  const hasMedical  = hwPositive || outcome === 'medical' || outcome === 'both' || isSenior;
   const stageOutcome = (hasMedical && hasBehavior) ? 'both'
                      : hasMedical                  ? 'medical'
                      : hasBehavior                 ? 'behavior'
                      : (outcome === 'weekend')      ? 'weekend'
                      : outcome;
   let { stage, cls, icon, note } = determineStage(stageOutcome);
+
+  // Add a senior-specific note alongside whatever note determineStage produced
+  if (isSenior) {
+    const seniorNote = '🐾 Senior animal (8+ years) — flagged for medical/wellness exam regardless of exam outcome.';
+    note = note ? `${note} ${seniorNote}` : seniorNote;
+  }
 
   // Young animals (under 8 weeks / under ~2 months) → Pending Foster Placement
   // regardless of intake type or exam outcome
@@ -1151,7 +1188,7 @@ function generateIndividualReport(intakeDate) {
       : 'Place in Medical Building — Cat Post-Op. Medical will perform surgery next day if possible.';
   }
   // OS + confirmed altered + healthy = Move to Adoptions (no hold, no surgery)
-  else if (state.intakeType === 'os' && confirmedAltered && examHealthy) {
+  else if (state.intakeType === 'os' && confirmedAltered && examHealthy && !isSenior) {
     const isChipped = state.microchip === 'yes';
     stage = 'Move to Adoptions';
     cls   = 'stage-new';
@@ -1496,6 +1533,8 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
   const items = [];
   const hwPos = hw === 'pos';
   const confirmedAlt = altered === 'yes';
+  const isSenior = !isLitter && age >= 416; // 8 years = 416 weeks
+  const medFlag = hwPos || isSenior;
 
   items.push({ icon: '💉', text: `Administer vaccines (age-eligible: ${age >= 4 ? '✅ yes' : '⚠️ under 4 wks — hold'})` });
   items.push({ icon: '💊', text: 'Administer Selamectin (topical, base of neck) per dose chart above — eligible at 8 weeks (2 months) and older' });
@@ -1505,13 +1544,17 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
     items.push({ icon: '🩸', text: `Heartworm test: ${hw === 'neg' ? '✅ Negative — logged' : hwPos ? '⚠️ POSITIVE — notify medical team immediately' : hw === 'pend' ? '⏳ Pending — follow up' : 'Required if 6 months or older'}` });
   }
 
+  if (isSenior) {
+    items.push({ icon: '🐾', text: '⚠️ Senior animal (8+ years) — flagged for medical/wellness exam regardless of exam outcome' });
+  }
+
   if (outcome === 'no-help' || outcome === 'pending' || outcome === 'weekend' || !outcome) {
     items.push({ icon: outcome === 'weekend' ? '📅' : '⚠️', text: outcome === 'weekend' ? 'Set stage to "New Arrival Needs Intake" · Weekend intake — return next business day to complete exam' : 'Set stage to "New Arrival Needs Intake" · Intake staff MUST return next business day to complete' });
-  } else if (hwPos && (outcome === 'behavior' || outcome === 'both')) {
+  } else if (medFlag && (outcome === 'behavior' || outcome === 'both')) {
     items.push({ icon: '⚕️⚠️', text: 'Set stage to "New Arrival Medical \\"Use Caution\\"" · Notify BOTH medical team AND Pathway Planning team' });
   } else if (outcome === 'both') {
     items.push({ icon: '⚕️⚠️', text: 'Set stage to "New Arrival Medical \\"Use Caution\\"" · Notify BOTH medical team AND Pathway Planning team' });
-  } else if (hwPos || outcome === 'medical') {
+  } else if (medFlag || outcome === 'medical') {
     items.push({ icon: '⚕️', text: 'Set stage to "New Arrival Medical" · Notify medical team' });
   } else if (outcome === 'behavior') {
     items.push({ icon: '⚠️', text: 'Set stage to "New Arrival Behavior" · Notify Pathway Planning team' });
