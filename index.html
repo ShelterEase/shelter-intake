@@ -889,7 +889,7 @@ function updateAgeNote() {
   if (!w) { el.textContent = ''; return; }
   if (w < 2)       el.textContent = '⚠️ Under 2 weeks — neonatal · No treatments yet · Assess for foster/bottle-feeding';
   else if (w < 4)  el.textContent = '2–4 weeks — Strongid eligible · Vaccines not yet due';
-  else if (w < 8)  el.textContent = '4–8 weeks — Strongid · DA2PP/FVRCP & Bordetella eligible · Not yet surgery-eligible';
+  else if (w < 8)  el.textContent = '4–8 weeks — Strongid · DA2PP/FVRCP & Bordetella · Not yet surgery-eligible';
   else if (w < 12) el.textContent = '8–12 weeks — Surgery eligible · Rabies not yet due (needs 12+ wks)';
   else if (w < 25.5) el.textContent = (w/4.33).toFixed(1) + ' months — All vaccines eligible · HW test not yet required';
   else             el.textContent = (w/4.33 >= 12) ? Math.round(w/52) + '+ years — Adult · HW test required' : (w/4.33).toFixed(1) + ' months — Adult · HW test required';
@@ -1267,12 +1267,12 @@ function generateIndividualReport(intakeDate) {
 
     const vaccines = species === 'dog'
       ? [
-          { name: 'DA2PP',      due: age >= 4,  note: age < 4  ? '⚠️ Under 4 wks — not yet eligible' : '✅ Eligible' },
-          { name: 'Bordetella', due: age >= 4,  note: age < 4  ? '⚠️ Under 4 wks — not yet eligible' : '✅ Eligible' },
+          { name: 'DA2PP',      due: true,  note: '✅ Administer' },
+          { name: 'Bordetella', due: true,  note: '✅ Administer' },
           { name: 'Rabies',     due: age >= 12, note: age < 12 ? `⚠️ Under 12 wks (${age} wks) — not yet eligible` : '✅ Eligible' },
         ]
       : [
-          { name: 'FVRCP', due: age >= 4,  note: age < 4  ? '⚠️ Under 4 wks — not yet eligible' : '✅ Eligible' },
+          { name: 'FVRCP', due: true,  note: '✅ Administer' },
           { name: 'Rabies', due: age >= 12, note: age < 12 ? `⚠️ Under 12 wks (${age} wks) — not yet eligible` : '✅ Eligible' },
         ];
 
@@ -1536,7 +1536,7 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
   const isSenior = !isLitter && age >= 416; // 8 years = 416 weeks
   const medFlag = hwPos || isSenior;
 
-  items.push({ icon: '💉', text: `Administer vaccines (age-eligible: ${age >= 4 ? '✅ yes' : '⚠️ under 4 wks — hold'})` });
+  items.push({ icon: '💉', text: 'Administer vaccines (DA2PP/FVRCP, Bordetella — all ages; Rabies eligible at 12 wks+)' });
   items.push({ icon: '💊', text: 'Administer Selamectin (topical, base of neck) per dose chart above — eligible at 8 weeks (2 months) and older' });
   items.push({ icon: '💊', text: 'Administer Strongid (oral, shake well) per dose chart above' });
 
