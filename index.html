@@ -556,6 +556,7 @@
           <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
             <input type="number" id="ageValue" placeholder="e.g. 8" min="0" step="0.5" style="flex:1;min-width:0" oninput="updateAgeNote(); regenerateIfVisible()"/>
             <select id="ageUnit" onchange="updateAgeNote(); regenerateIfVisible()" style="width:90px;flex-shrink:0">
+              <option value="days">days</option>
               <option value="weeks">wks</option>
               <option value="months">mos</option>
               <option value="years">yrs</option>
@@ -841,9 +842,10 @@ function getLitterAgeWeeks() {
 
 // Returns age in weeks from the age input fields
 function getAgeWeeks() {
-  if (state.seniorFlag === 'yes') return 416; // 8 years, exact threshold
+  if (state.seniorFlag === 'yes') return 416;
   const val  = parseFloat(document.getElementById('ageValue')?.value) || 0;
   const unit = document.getElementById('ageUnit')?.value || 'weeks';
+  if (unit === 'days')   return val / 7;
   if (unit === 'months') return val * 4.33;
   if (unit === 'years')  return val * 52;
   return val;
@@ -854,10 +856,12 @@ function ageLabel() {
   const val  = parseFloat(document.getElementById('ageValue')?.value) || 0;
   const unit = document.getElementById('ageUnit')?.value || 'weeks';
   if (!val) return '—';
+  if (unit === 'days')   return val + ' day' + (val !== 1 ? 's' : '');
   if (unit === 'years')  return val + ' year' + (val !== 1 ? 's' : '');
   if (unit === 'months') return val + ' month' + (val !== 1 ? 's' : '');
-  if (val >= 8) return val + ' weeks (~' + (val/4.33).toFixed(1) + ' mo)';
-  return val + ' weeks';
+  const w = val;
+  if (w >= 8) return w + ' weeks (~' + (w/4.33).toFixed(1) + ' mo)';
+  return w + ' weeks';
 }
 
 // Toggle the Senior (8+ yrs) pill. Disables/clears the numeric age input when active.
@@ -887,12 +891,14 @@ function updateAgeNote() {
   }
   const w  = getAgeWeeks();
   if (!w) { el.textContent = ''; return; }
-  if (w < 2)       el.textContent = '⚠️ Under 2 weeks — neonatal · No treatments yet · Assess for foster/bottle-feeding';
-  else if (w < 4)  el.textContent = '2–4 weeks — Strongid eligible · Vaccines not yet due';
-  else if (w < 8)  el.textContent = '4–8 weeks — Strongid · DA2PP/FVRCP & Bordetella · Not yet surgery-eligible';
-  else if (w < 12) el.textContent = '8–12 weeks — Surgery eligible · Rabies not yet due (needs 12+ wks)';
+  if (w < 1)       el.textContent = '⚠️ Under 1 week — neonatal · Assess for foster/bottle-feeding · Vaccines, Selamectin, Strongid per medical team guidance';
+  else if (w < 2)  el.textContent = '⚠️ Under 2 weeks — neonatal · Assess for foster/bottle-feeding · Vaccines given · Strongid not yet eligible · Selamectin not yet eligible';
+  else if (w < 8)  el.textContent = w < 4
+    ? '2–4 weeks — Vaccines given · Strongid eligible · Selamectin not yet eligible (needs 8 wks)'
+    : '4–8 weeks — Vaccines given · Strongid eligible · Selamectin not yet eligible (needs 8 wks) · Not yet surgery-eligible';
+  else if (w < 12) el.textContent = '8–12 weeks — Vaccines given · Selamectin eligible · Surgery eligible · Rabies not yet due (needs 12+ wks)';
   else if (w < 25.5) el.textContent = (w/4.33).toFixed(1) + ' months — All vaccines eligible · HW test not yet required';
-  else             el.textContent = (w/4.33 >= 12) ? Math.round(w/52) + '+ years — Adult · HW test required' : (w/4.33).toFixed(1) + ' months — Adult · HW test required';
+  else             el.textContent = (w/4.33 >= 12) ? Math.round(w/52) + '+ years — Adult · All vaccines · HW test required' : (w/4.33).toFixed(1) + ' months — Adult · All vaccines · HW test required';
 }
 
 // ─── Litter rows ──────────────────────────────────────────────────────────────
@@ -1251,9 +1257,7 @@ function generateIndividualReport(intakeDate) {
   // ── Medications ──
   let medsHTML = '';
   if (species && weight > 0) {
-    const canVacc = age >= 4;
     const canRabies = age >= 12;  // ~3 months
-    const isOver4wk = age >= 4;
 
     const sel = selamectinDose(species, weight);
     const str = strongidDose(weight);
