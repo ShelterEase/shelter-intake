@@ -1271,42 +1271,46 @@ function generateIndividualReport(intakeDate) {
 
     const vaccines = species === 'dog'
       ? [
-          { name: 'DA2PP',      due: true,  note: '✅ Administer' },
-          { name: 'Bordetella', due: true,  note: '✅ Administer' },
-          { name: 'Rabies',     due: age >= 12, note: age < 12 ? `⚠️ Under 12 wks (${age} wks) — not yet eligible` : '✅ Eligible' },
+          { name: 'DA2PP',      due: true,       route: 'SQ',         site: 'Front right leg',  note: '✅ Administer' },
+          { name: 'Bordetella', due: true,        route: 'Intranasal', site: '—',                note: '✅ Administer' },
+          { name: 'Rabies',     due: age >= 12,   route: 'SQ',         site: 'Back right leg',   note: age < 12 ? `⚠️ Under 12 wks (${age.toFixed(1)} wks) — not yet eligible` : '✅ Eligible' },
         ]
       : [
-          { name: 'FVRCP', due: true,  note: '✅ Administer' },
-          { name: 'Rabies', due: age >= 12, note: age < 12 ? `⚠️ Under 12 wks (${age} wks) — not yet eligible` : '✅ Eligible' },
+          { name: 'FVRCP',  due: true,            route: 'SQ',         site: 'Front right leg',  note: '✅ Administer' },
+          { name: 'Rabies', due: age >= 12,        route: 'SQ',         site: 'Back right leg',   note: age < 12 ? `⚠️ Under 12 wks (${age.toFixed(1)} wks) — not yet eligible` : '✅ Eligible' },
         ];
 
     medsHTML = `
       <table class="dose-table">
-        <thead><tr><th>Treatment</th><th>Dose</th><th>Route</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Treatment</th><th>Dose</th><th>Route</th><th>Site</th><th>Notes</th></tr></thead>
         <tbody>
           <tr>
             <td class="med-name">Selamectin (Topical)</td>
             <td class="dose-val">${selEligible ? sel : '—'}</td>
-            <td>${selEligible ? 'Topical — base of neck' : '—'}</td>
-            <td class="note">${selEligible ? '120 mg/mL · Apply at base of neck ✅ Eligible (8 wks+)' : `⚠️ Under 8 weeks — not yet eligible (${age} wks)`}</td>
+            <td>${selEligible ? 'Topical' : '—'}</td>
+            <td>${selEligible ? 'Base of neck' : '—'}</td>
+            <td class="note">${selEligible ? '120 mg/mL ✅ Eligible (8 wks+)' : `⚠️ Under 8 weeks — not yet eligible (${age.toFixed(1)} wks)`}</td>
           </tr>
           <tr>
             <td class="med-name">Strongid (Pyrantel Pamoate)</td>
             <td class="dose-val">${strongidEligible ? str : '—'}</td>
             <td>${strongidEligible ? 'Oral' : '—'}</td>
+            <td>—</td>
             <td class="note">${strongidEligible ? '0.2 ml/lb · Shake well ✅ Eligible (2 wks+)' : '⚠️ Under 2 weeks — not yet eligible'}</td>
           </tr>
           ${species === 'dog' ? `<tr>
             <td class="med-name">Heartworm Test</td>
             <td class="dose-val">${hwRequired ? 'Required' : '—'}</td>
             <td>${hwRequired ? 'Blood draw' : '—'}</td>
+            <td>—</td>
             <td class="note">${hwRequired ? '✅ Required (6 months / 26+ wks)' : `⚠️ Not yet required — ${(age/4.33).toFixed(1)} months (need 6 months)`}</td>
           </tr>` : ''}
           ${vaccines.map(v => `
           <tr>
             <td class="med-name">${v.name}</td>
             <td class="dose-val">${v.due ? '1 dose' : '—'}</td>
-            <td>${v.due ? 'SQ / per label' : '—'}</td>
+            <td>${v.due ? v.route : '—'}</td>
+            <td>${v.due ? v.site : '—'}</td>
             <td class="note">${v.note}</td>
           </tr>`).join('')}
 
