@@ -267,21 +267,21 @@
   /* ── Submit button ── */
   .btn-submit {
     display: block; width: 100%;
-    padding: 16px;
-    background: linear-gradient(110deg, var(--green) 0%, var(--green-mid) 100%);
+    padding: 18px;
+    background: linear-gradient(110deg, #b34700 0%, #e05c00 100%);
     color: #fff;
     border: none;
     border-radius: var(--radius);
     font-family: inherit;
     font-weight: 900;
-    font-size: 1.05rem;
-    letter-spacing: 0.3px;
+    font-size: 1.1rem;
+    letter-spacing: 0.4px;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(10,124,92,0.3);
+    box-shadow: 0 4px 20px rgba(179,71,0,0.4);
     transition: all 0.17s;
     margin-top: 8px;
   }
-  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 7px 24px rgba(10,124,92,0.38); }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 7px 26px rgba(179,71,0,0.5); }
 
   .btn-reset {
     display: block; width: 100%; padding: 12px;
@@ -511,9 +511,10 @@
         <div style="margin-top:14px">
           <label>Microchip Present? <span class="req">*</span></label>
           <div class="pill-group" id="microchipPresentPills">
-            <button class="pill yes" data-group="microchipPresent" data-val="yes" onclick="setPill(this)">✅ Yes — Possible Owner</button>
+            <button class="pill yes" data-group="microchipPresent" data-val="yes" onclick="setPill(this)">✅ Yes</button>
             <button class="pill no"  data-group="microchipPresent" data-val="no"  onclick="setPill(this)">❌ No</button>
           </div>
+          <p id="microchipHint" class="inline-note" style="display:none;margin-top:4px">⚠️ Microchip found — select <strong>Possible Owner</strong> or <strong>Owner Surrender</strong> as intake type below</p>
         </div>
 
       </div>
@@ -684,6 +685,7 @@
   <!-- ── SUBMIT ── -->
   <div id="submitSection" class="hidden">
     <button class="btn-submit" onclick="generateReport()">🐾 Generate Intake Report &amp; Action Plan</button>
+    <p style="text-align:center;font-size:0.78rem;color:var(--gray-500);margin-top:8px">⟳ After making any changes, tap the button again to refresh the report below</p>
   </div>
 
   <!-- ── RESULTS ── -->
@@ -777,11 +779,14 @@ function setPill(btn) {
   document.querySelectorAll(`.pill[data-group="${group}"]`).forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
 
-  // If microchip = yes, auto-select Possible Owner intake type
+  // If microchip = yes, suggest Possible Owner but don't lock — owner surrenders can also have chips
   if (group === 'microchipPresent' && val === 'yes') {
-    const poBtn = document.querySelector('.pill[data-group="intakeType"][data-val="po"]');
-    if (poBtn) setPill(poBtn);
-    return; // setPill(poBtn) will call onStateChange + regenerateIfVisible
+    // Only auto-select PO if no intake type has been chosen yet
+    if (!state.intakeType) {
+      const poBtn = document.querySelector('.pill[data-group="intakeType"][data-val="po"]');
+      if (poBtn) setPill(poBtn);
+      return;
+    }
   }
   // If microchip = no and intakeType is currently po, clear it
   if (group === 'microchipPresent' && val === 'no' && state.intakeType === 'po') {
@@ -803,26 +808,30 @@ function regenerateIfVisible() {
 // ─── Reactive UI ──────────────────────────────────────────────────────────────
 function onStateChange() {
   // Show individual vs litter section
+  // Stay visible if species already selected even if intakeType momentarily null (e.g. stray cleared by chip)
   const isLitter = state.intakeType === 'litter';
-  toggle('individualSection', !isLitter && state.intakeType !== null);
+  const showIndividual = !isLitter && (state.intakeType !== null || state.species !== null);
+  toggle('individualSection', showIndividual);
   toggle('litterSection',     isLitter);
   toggle('submitSection',     state.intakeType !== null);
 
   // Heartworm only for dogs
   toggle('hwSection', state.species === 'dog' && !isLitter);
 
-  // If microchip=yes, lock intake type to Possible Owner only
-  document.querySelectorAll('.pill[data-group="intakeType"]').forEach(btn => {
-    if (state.microchipPresent === 'yes' && btn.dataset.val !== 'po') {
-      btn.disabled = true;
-      btn.style.opacity = '0.35';
-      btn.style.cursor = 'not-allowed';
-    } else {
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.style.cursor = '';
+  // Microchip hint + hide Stray option when chip present
+  const chipYes = state.microchipPresent === 'yes';
+  const hint = document.getElementById('microchipHint');
+  if (hint) hint.style.display = chipYes ? 'block' : 'none';
+  const strayBtn = document.querySelector('.pill[data-group="intakeType"][data-val="stray"]');
+  if (strayBtn) {
+    strayBtn.style.display = chipYes ? 'none' : '';
+    // If stray was active when chip=yes selected, just deselect it visually
+    // but don't null out intakeType so the form stays visible
+    if (chipYes && state.intakeType === 'stray') {
+      state.intakeType = null;
+      document.querySelectorAll('.pill[data-group="intakeType"]').forEach(p => p.classList.remove('active'));
     }
-  });
+  }
 
 }
 
@@ -1146,12 +1155,16 @@ function generateIndividualReport(intakeDate) {
       const offsets = species === 'dog' ? DOG_PO_SURG_OFFSETS : CAT_PO_SURG_OFFSETS;
       surgeryDate = addDays(intakeDate, offsets[dow]);
       strayHoldDate = surgeryDate; // PO also has a hold
+    } else if (state.intakeType === 'os') {
+      // No hold — surgery same day, or next Monday if intake falls on weekend
+      const dow = intakeDate.getDay();
+      if (dow === 0) surgeryDate = addDays(intakeDate, 1);      // Sunday → Monday
+      else if (dow === 6) surgeryDate = addDays(intakeDate, 2); // Saturday → Monday
+      else surgeryDate = intakeDate;
     } else {
-      const tbl = state.intakeType === 'os'
-        ? (species === 'dog' ? DOG_OS_SURG : CAT_OS_SURG)
-        : (species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG);
+      const tbl = species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG;
       surgeryDate = scheduledDay(intakeDate, tbl);
-      if (state.intakeType === 'stray') strayHoldDate = surgeryDate;
+      strayHoldDate = surgeryDate;
     }
   }
 
