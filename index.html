@@ -985,17 +985,63 @@ const CAT_PO_SURG     = CAT_STRAY_SURG; // litter fallback only
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-// Given an intake date and a DOW lookup table, find the next occurrence of that target DOW
-// at least 1 day after intake.
+// ─── Shelter Holidays (surgery not performed) ─────────────────────────────────
+// Format: 'YYYY-MM-DD'. Update each year as needed.
+const SHELTER_HOLIDAYS = new Set([
+  '2026-09-07', // Labor Day
+  '2026-11-11', // Veterans Day
+  '2026-11-26', // Thanksgiving
+  '2026-11-27', // Day after Thanksgiving
+  '2026-12-25', // Christmas
+  '2027-01-01', // New Year's Day
+]);
+
+// Returns true if a date is a shelter holiday (surgery not performed)
+function isHoliday(d) {
+  const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return SHELTER_HOLIDAYS.has(key);
+}
+
+// Returns true if a date is a Sunday or shelter holiday (not a valid surgery day)
+// Note: Saturday IS a valid surgery day
+function isBlockedDay(d) {
+  if (d.getDay() === 0) return true; // Sunday only
+  return isHoliday(d);
+}
+
+// Advance a date forward until it lands on a valid surgery day (Mon–Fri, non-holiday)
+function nextValidSurgeryDay(d) {
+  let r = new Date(d);
+  while (isBlockedDay(r)) r = addDays(r, 1);
+  return r;
+}
+
+// Given an intake date and a DOW lookup table, find the target surgery DOW,
+// then count any blocked days (Sundays + holidays) within the hold window
+// and push the surgery date forward by that many extra days, landing on a valid day.
 function scheduledDay(intakeDate, lookupTable) {
   const dow = intakeDate.getDay();
   const targetDow = lookupTable[dow];
+
+  // Find the first occurrence of targetDow after intake
   let d = addDays(intakeDate, 1);
-  for (let i = 0; i < 14; i++) {
-    if (d.getDay() === targetDow) return d;
+  for (let i = 0; i < 21; i++) {
+    if (d.getDay() === targetDow) break;
     d = addDays(d, 1);
   }
-  return null;
+
+  // Count holidays (not Sundays — DOW tables already account for those)
+  // between intake (exclusive) and target date (inclusive), and extend by that many days
+  let extra = 0;
+  let check = addDays(intakeDate, 1);
+  while (check <= d) {
+    if (isHoliday(check)) extra++;
+    check = addDays(check, 1);
+  }
+
+  // Push forward by the number of blocked days found, then land on next valid day
+  let result = addDays(d, extra);
+  return nextValidSurgeryDay(result);
 }
 
 // Calculate surgery date from chart for animals > 4 months.
@@ -1005,7 +1051,15 @@ function calcSurgeryDate(intakeDate, intakeType, species) {
   const dow = intakeDate.getDay();
   if (intakeType === 'po') {
     const offsets = species === 'dog' ? DOG_PO_SURG_OFFSETS : CAT_PO_SURG_OFFSETS;
-    return addDays(intakeDate, offsets[dow]);
+    const baseDate = addDays(intakeDate, offsets[dow]);
+    // Count holidays (not Sundays) within the hold window and extend
+    let extra = 0;
+    let check = addDays(intakeDate, 1);
+    while (check <= baseDate) {
+      if (isHoliday(check)) extra++;
+      check = addDays(check, 1);
+    }
+    return nextValidSurgeryDay(addDays(baseDate, extra));
   }
   const tbl = intakeType === 'os'
     ? (species === 'dog' ? DOG_OS_SURG : CAT_OS_SURG)
@@ -1153,14 +1207,15 @@ function generateIndividualReport(intakeDate) {
     if (state.intakeType === 'po') {
       const dow = intakeDate.getDay();
       const offsets = species === 'dog' ? DOG_PO_SURG_OFFSETS : CAT_PO_SURG_OFFSETS;
-      surgeryDate = addDays(intakeDate, offsets[dow]);
-      strayHoldDate = surgeryDate; // PO also has a hold
+      const baseDate = addDays(intakeDate, offsets[dow]);
+      let extra = 0;
+      let check = addDays(intakeDate, 1);
+      while (check <= baseDate) { if (isHoliday(check)) extra++; check = addDays(check, 1); }
+      surgeryDate = nextValidSurgeryDay(addDays(baseDate, extra));
+      strayHoldDate = surgeryDate;
     } else if (state.intakeType === 'os') {
-      // No hold — surgery same day, or next Monday if intake falls on weekend
-      const dow = intakeDate.getDay();
-      if (dow === 0) surgeryDate = addDays(intakeDate, 1);      // Sunday → Monday
-      else if (dow === 6) surgeryDate = addDays(intakeDate, 2); // Saturday → Monday
-      else surgeryDate = intakeDate;
+      // No hold — surgery same day if weekday and non-holiday, otherwise next valid day
+      surgeryDate = nextValidSurgeryDay(intakeDate);
     } else {
       const tbl = species === 'dog' ? DOG_STRAY_SURG : CAT_STRAY_SURG;
       surgeryDate = scheduledDay(intakeDate, tbl);
@@ -1263,6 +1318,7 @@ function generateIndividualReport(intakeDate) {
         <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--green)">📅 Surgery Day</div>
         <div style="font-size:1.1rem;font-weight:900;margin-top:3px">${fmtDate(surgeryDate)}</div>
         <div style="font-size:0.78rem;color:var(--gray-500);margin-top:3px">${surgSub}</div>
+        <div style="font-size:0.75rem;color:var(--gray-400);margin-top:4px">🗓️ Sundays &amp; shelter holidays automatically skipped</div>
       </div>`;
   }
   document.getElementById('rSurgeryContent').innerHTML = surgHTML;
