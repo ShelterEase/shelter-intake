@@ -394,15 +394,51 @@
     #results { display: block !important; box-shadow: none; border: none; }
     body { background: #fff; margin: 0; padding: 0; font-size: 9pt; }
     .app { padding: 0; max-width: 100%; }
-    @page { margin: 0.65in; size: letter portrait; }
+    @page { margin: 0.5in; size: letter portrait; }
+
+    /* Center everything in a single column */
+    #results-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    #rStageCol {
+      display: block;
+      width: 100%;
+      max-width: 6.5in;
+    }
+
+    /* Every section full width, linear */
+    .result-section {
+      width: 100%;
+      max-width: 6.5in;
+      padding: 6px 0 !important;
+      border: none !important;
+      border-bottom: 1px solid #e0e0e0 !important;
+      break-inside: avoid;
+      box-sizing: border-box;
+    }
+    .result-section:last-child { border-bottom: none !important; }
+
+    .result-section h3 {
+      font-size: 7pt !important;
+      margin-bottom: 4px !important;
+      letter-spacing: 0.8px;
+      color: #6b7a71;
+      text-transform: uppercase;
+    }
 
     /* Header */
     .result-header {
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      padding: 5px 10px !important;
+      padding: 6px 10px !important;
+      width: 100%;
+      box-sizing: border-box;
     }
-    .result-header h2 { font-size: 10pt !important; }
-    .result-header p  { font-size: 7pt !important; }
+    .result-header h2 { font-size: 11pt !important; }
+    .result-header p  { font-size: 7.5pt !important; }
 
     /* Intake type banner */
     #printIntakeType {
@@ -412,76 +448,60 @@
       background: #e0f5ec;
       border-bottom: 1px solid #a5d6a7;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      width: 100%; box-sizing: border-box;
     }
 
-    /* Hide dates — info is in surgery section */
-    #rDates { display: none !important; }
+    /* Show dates section in print */
+    #rDates { display: block !important; width: 100%; max-width: 6.5in; margin-left: auto; margin-right: auto; }
     #rLitter { display: none !important; }
 
-    /* ── 4-QUADRANT GRID ──
-       TL: Animal Summary   TR: Stage + Surgery
-       BL: Medication Doses BR: Checklist
-    */
-    #results-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto;
-      border: 1px solid #ccc;
-    }
-    #rSummary  { grid-column: 1; grid-row: 1; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; }
-    #rStageCol { grid-column: 2; grid-row: 1; border-bottom: 1px solid #ccc; }
-    #rMeds     { grid-column: 1; grid-row: 2; border-right: 1px solid #ccc; }
-    #rChecklist{ grid-column: 2; grid-row: 2; }
-
-    .result-section {
-      padding: 5px 8px !important;
-      border: none !important;
-      break-inside: avoid;
-    }
-    .result-section h3 {
-      font-size: 6.5pt !important; margin-bottom: 3px !important;
-      letter-spacing: 0.8px; color: #6b7a71;
-      border-bottom: 1px solid #eee; padding-bottom: 2px;
-    }
-
-    /* Tight label/value rows */
+    /* Summary info rows */
     .info-row {
-      display: flex; justify-content: space-between;
-      padding: 1px 0 !important; font-size: 8.5pt !important;
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0 !important;
+      font-size: 8.5pt !important;
       border-bottom: none !important;
     }
     .info-label { font-size: 7.5pt !important; color: #666; }
-    .info-value  { font-size: 8.5pt !important; font-weight: 700; text-align: right; }
+    .info-value  { font-size: 8.5pt !important; font-weight: 700; }
 
-    /* Stage + Surgery stacked in right column */
-    #rStageCol .result-section { padding: 4px 8px !important; }
-    #rStageCol #rStage { border-bottom: 1px solid #eee !important; }
-
+    /* Stage badge */
     .stage-badge {
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      padding: 3px 10px !important; font-size: 9pt !important;
-      border-radius: 20px !important; display: inline-flex;
+      padding: 3px 12px !important;
+      font-size: 9.5pt !important;
+      border-radius: 20px !important;
+      display: inline-flex;
     }
 
+    /* Date boxes */
     .date-box {
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      padding: 3px 7px !important; margin: 2px 0 !important;
-      border-radius: 5px !important; border-width: 1px !important;
+      padding: 3px 8px !important;
+      margin: 3px 0 !important;
+      border-radius: 5px !important;
+      border-width: 1px !important;
+      display: inline-block;
     }
     .date-box .date-label { font-size: 6.5pt !important; }
-    .date-box .date-value { font-size: 9pt !important; }
+    .date-box .date-value { font-size: 9.5pt !important; }
     .date-box .date-sub   { font-size: 6.5pt !important; }
 
-    .dose-table { font-size: 7pt !important; width: 100%; }
-    .dose-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
-    .dose-table td { padding: 2px 4px !important; }
-    .dose-table .dose-val { font-size: 8pt !important; }
+    /* Meds table */
+    .dose-table { font-size: 7.5pt !important; width: 100%; border-collapse: collapse; }
+    .dose-table th { padding: 2px 5px !important; font-size: 7pt !important; }
+    .dose-table td { padding: 2px 5px !important; }
+    .dose-table .dose-val { font-size: 8.5pt !important; }
 
-    .checklist li { padding: 1px 0 !important; font-size: 7.5pt !important; }
-    .checklist .icon { font-size: 8pt !important; }
+    /* Checklist */
+    .checklist { margin: 0; padding: 0; list-style: none; }
+    .checklist li { padding: 2px 0 !important; font-size: 8pt !important; }
+    .checklist .icon { font-size: 9pt !important; }
 
     p { font-size: 8pt !important; margin: 2px 0 !important; }
 
+    /* Hide the action buttons at bottom of results */
     #results > div:last-child { display: none !important; }
   }
 </style>
@@ -555,8 +575,8 @@
         <div>
           <label>Age <span class="req">*</span></label>
           <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-            <input type="number" id="ageValue" placeholder="e.g. 8" min="0" step="0.5" style="flex:1;min-width:0" oninput="updateAgeNote(); regenerateIfVisible()"/>
-            <select id="ageUnit" onchange="updateAgeNote(); regenerateIfVisible()" style="width:90px;flex-shrink:0">
+            <input type="number" id="ageValue" placeholder="e.g. 8" min="0" step="0.5" style="flex:1;min-width:0" oninput="updateAgeNote(); onStateChange(); regenerateIfVisible()"/>
+            <select id="ageUnit" onchange="updateAgeNote(); onStateChange(); regenerateIfVisible()" style="width:90px;flex-shrink:0">
               <option value="days">days</option>
               <option value="weeks">wks</option>
               <option value="months">mos</option>
@@ -807,16 +827,41 @@ function regenerateIfVisible() {
 
 // ─── Reactive UI ──────────────────────────────────────────────────────────────
 function onStateChange() {
-  // Show individual vs litter section
-  // Stay visible if species already selected even if intakeType momentarily null (e.g. stray cleared by chip)
   const isLitter = state.intakeType === 'litter';
-  const showIndividual = !isLitter && (state.intakeType !== null || state.species !== null);
-  toggle('individualSection', showIndividual);
+  toggle('individualSection', !isLitter && state.intakeType !== null);
   toggle('litterSection',     isLitter);
   toggle('submitSection',     state.intakeType !== null);
 
   // Heartworm only for dogs
   toggle('hwSection', state.species === 'dog' && !isLitter);
+
+  // If dog is under 6 months, only allow N/A pill; disable Neg/Pos
+  if (state.species === 'dog' && !isLitter) {
+    const ageWks = typeof getAgeWeeks === 'function' ? getAgeWeeks() : 0;
+    const under6mo = ageWks > 0 && ageWks < 25.5;
+    ['neg','pos'].forEach(val => {
+      const btn = document.querySelector(`.pill[data-group="heartworm"][data-val="${val}"]`);
+      if (!btn) return;
+      btn.disabled = under6mo;
+      btn.style.opacity = under6mo ? '0.3' : '';
+      btn.style.cursor = under6mo ? 'not-allowed' : '';
+      if (under6mo && btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        state.heartworm = null;
+      }
+    });
+    // Auto-select N/A if under 6 months and nothing selected
+    if (under6mo && !state.heartworm) {
+      const naBtn = document.querySelector('.pill[data-group="heartworm"][data-val="na"]');
+      if (naBtn && !naBtn.classList.contains('active')) {
+        naBtn.classList.add('active');
+        state.heartworm = 'na';
+      }
+    }
+    // Re-enable N/A pill always
+    const naBtn = document.querySelector('.pill[data-group="heartworm"][data-val="na"]');
+    if (naBtn) { naBtn.disabled = false; naBtn.style.opacity = ''; naBtn.style.cursor = ''; }
+  }
 
   // Microchip hint + hide Stray option when chip present
   const chipYes = state.microchipPresent === 'yes';
@@ -825,11 +870,13 @@ function onStateChange() {
   const strayBtn = document.querySelector('.pill[data-group="intakeType"][data-val="stray"]');
   if (strayBtn) {
     strayBtn.style.display = chipYes ? 'none' : '';
-    // If stray was active when chip=yes selected, just deselect it visually
-    // but don't null out intakeType so the form stays visible
     if (chipYes && state.intakeType === 'stray') {
+      // Deselect stray visually but keep individualSection open by setting intakeType to a temp value
+      // We set it to null but force individualSection visible if species is already picked
       state.intakeType = null;
       document.querySelectorAll('.pill[data-group="intakeType"]').forEach(p => p.classList.remove('active'));
+      if (state.species) toggle('individualSection', true);
+      toggle('submitSection', false);
     }
   }
 
