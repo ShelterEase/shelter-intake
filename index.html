@@ -1836,7 +1836,11 @@ function buildChecklist({ isLitter, species, altered, outcome, hw, intakeType, a
     && outcome  // must have an outcome
     && age > 17; // over 4 months
   if (surgeryNeeded) {
-    items.push({ num: n++, icon: '✂️', text: 'Schedule surgery in PetPoint (see surgery date above)' });
+    items.push({ num: n++, icon: '✂️', text: 'Schedule surgery in PetPoint — use surgery date shown above' });
+  } else if (!confirmedAlt && !isLitter && age > 17 && (medFlag || ['medical','behavior','both','emergency'].includes(outcome))) {
+    items.push({ num: n++, icon: '✂️', text: 'Surgery on hold — schedule once medical/behavior issue is resolved' });
+  } else if (confirmedAlt && !isLitter) {
+    items.push({ num: n++, icon: '✂️', text: 'Already altered — no surgery needed' });
   }
   if (isLitter && momPresent === 'yes' && momAltered === 'no') {
     items.push({ num: n++, icon: '✂️', text: 'Schedule surgery for mother in PetPoint (see surgery section above)' });
