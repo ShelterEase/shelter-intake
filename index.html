@@ -1291,6 +1291,10 @@ function generateIndividualReport(intakeDate) {
     <div class="info-row"><span class="info-label">Intake Type</span><span class="info-value">${state.intakeType === 'os' ? '👤 Owner Surrender' : state.intakeType === 'po' ? '🏷️ Possible Owner' : '🏃 Stray'}</span></div>
     ${hw ? `<div class="info-row"><span class="info-label">Heartworm Test</span><span class="info-value">${hw === 'neg' ? '✅ Negative' : hw === 'pos' ? '⚠️ Positive' : hw === 'pend' ? '⏳ Pending' : 'N/A'}</span></div>` : ''}
     ${notes ? `<div class="info-row"><span class="info-label">Notes</span><span class="info-value" style="max-width:60%;text-align:right">${notes}</span></div>` : ''}
+    <div style="margin-top:10px;background:var(--green);border-radius:8px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:rgba(255,255,255,0.8)">📥 Intake Date</span>
+      <span style="font-size:0.95rem;font-weight:900;color:#fff">${fmtDate(intakeDate)}</span>
+    </div>
   `;
 
   // ── Dates — intake date only ──
@@ -1593,6 +1597,10 @@ function generateLitterReport(intakeDate) {
     <div class="info-row"><span class="info-label">Mother Present?</span><span class="info-value">${momPresent === 'yes' ? '✅ Yes' : momPresent === 'no' ? '❌ No' : '—'}</span></div>
     <div class="info-row"><span class="info-label">Mother Altered?</span><span class="info-value">${momAltered === 'yes' ? '✅ Altered' : momAltered === 'no' ? '❌ Intact' : '—'}</span></div>
     <div class="info-row"><span class="info-label">Intake Type</span><span class="info-value">${it === 'os' ? '👤 Owner Surrender' : '🏃 Stray'}</span></div>
+    <div style="margin-top:10px;background:var(--green);border-radius:8px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:rgba(255,255,255,0.8)">📥 Intake Date</span>
+      <span style="font-size:0.95rem;font-weight:900;color:#fff">${fmtDate(intakeDate)}</span>
+    </div>
   `;
 
   // ── Surgery eligibility check ──
